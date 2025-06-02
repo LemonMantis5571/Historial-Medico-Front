@@ -3,7 +3,6 @@ import { useState } from "react"
 import { Stethoscope, UserIcon, Lock, AlertCircle } from "lucide-react"
 
 export default function LoginScreen({ onLogin }) {
-    const [userType, setUserType] = useState("doctor")
     const [credentials, setCredentials] = useState({ username: "", password: "" })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
@@ -15,48 +14,24 @@ export default function LoginScreen({ onLogin }) {
 
         try {
 
-            //   const response = await fetch("/api/auth/login", {
-            //     method: "POST",
-            //     headers: {
-            //       "Content-Type": "application/json",
-            //     },
-            //     body: JSON.stringify({
-            //       username: credentials.username,
-            //       password: credentials.password,
-            //       userType: userType,
-            //     }),
-            //   })
+            const response = await fetch("http://127.0.0.1:5002/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username: credentials.username,
+                    password: credentials.password,
+                }),
+            })
 
-            // if (!response.ok) {
-            //     throw new Error("Invalid credentials")
-            // }
-
-            //   const data = await response.json()
-            const data = {
-                token: "mock-token",
+            if (!response.ok) {
+                throw new Error("Invalid credentials")
             }
 
-            const mockUser = {
-                id: userType === "patient" ? "1" : "101",
-                name: userType === "patient" ? "Paciente 1" : "Doctor 1",
-                type: userType,
-                email: credentials.username,
-                ...(userType === "patient"
-                    ? {
-                        age: 21,
-                        gender: "Masculino",
-                        contact: "1234-5678",
-                    }
-                    : {
-                        age: 25,
-                        specialty: "Medico General",
-                        contact: "1234-5678",
-                    }),
-            }
+            const data = await response.json()
 
-            
-
-            onLogin(mockUser, data.token || "mock-token")
+            onLogin(data.user, data.token || "mock-token")
         } catch (err) {
             console.error("Login error:", err)
             setError("Credenciales inválidas. Por favor, intente nuevamente.")
@@ -67,7 +42,6 @@ export default function LoginScreen({ onLogin }) {
 
     return (
         <div className="min-h-screen flex">
-            {/* Left Side - Branding */}
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center p-12">
                 <div className="text-center text-white">
                     <div className="flex items-center justify-center mb-8">
@@ -92,26 +66,6 @@ export default function LoginScreen({ onLogin }) {
                     <div className="text-center mb-8">
                         <h2 className="text-3xl font-bold text-gray-900 mb-2">Bienvenido</h2>
                         <p className="text-gray-600">Inicia sesión en tu cuenta</p>
-                    </div>
-
-                    {/* User Type Toggle */}
-                    <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-                        <button
-                            type="button"
-                            onClick={() => setUserType("patient")}
-                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all hover:cursor-pointer ${userType === "patient" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                                }`}
-                        >
-                            Paciente
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setUserType("doctor")}
-                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all hover:cursor-pointer ${userType === "doctor" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                                }`}
-                        >
-                            Doctor
-                        </button>
                     </div>
 
                     {error && (

@@ -14,7 +14,7 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }) {
     { id: "profile", label: "Mi Perfil", icon: UserIcon },
   ]
 
-  const menuItems = user.type === "patient" ? patientMenuItems : doctorMenuItems
+  const menuItems = user.role === "patient" ? patientMenuItems : doctorMenuItems
 
   return (
     <div className="w-64 bg-white shadow-lg flex flex-col">
@@ -62,7 +62,7 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }) {
           </div>
           <div className="ml-3">
             <p className="text-sm font-medium text-gray-900">{user.name}</p>
-            <p className="text-xs text-gray-500 capitalize">{user.type}</p>
+            <p className="text-xs text-gray-500 capitalize">{user.role}</p>
           </div>
         </div>
 

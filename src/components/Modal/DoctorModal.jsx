@@ -4,9 +4,9 @@ import { Edit, Save, X, Plus } from 'lucide-react';
 export default function ProfessionalModal({ professional, onUpdate }) {
     const [isOpen, setIsOpen] = useState(false);
     const [formData, setFormData] = useState({
-        age: '',
+        name: '',
         specialty: '',
-        phone: '',
+        phone: ''
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -28,52 +28,55 @@ export default function ProfessionalModal({ professional, onUpdate }) {
         'Otro'
     ];
 
-
     useEffect(() => {
         if (professional && isOpen) {
             setFormData({
-                age: professional.age || '',
+                name: professional.name || '',
                 specialty: professional.specialty || '',
-                phone: professional.phone || '',
+                phone: professional.phone || ''
             });
         }
     }, [professional, isOpen]);
 
-    const handleInputChange = (field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
     const handleSave = async () => {
         setIsLoading(true);
         try {
+            const response = await fetch(`http://127.0.0.1:5002/medicos/${professional.ID_Doctor}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: formData.name,
+                    specialty: formData.specialty,
+                    phone: formData.phone
+                })
+            });
 
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-
-            if (onUpdate) {
-                await onUpdate();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error updating professional info');
             }
+
+            const data = await response.json();
             
-  
+            onUpdate();
+            
             setIsOpen(false);
         } catch (error) {
             console.error('Error updating professional info:', error);
-
+            alert('Error al actualizar la información: ' + error.message);
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClose = () => {
-
         if (professional) {
             setFormData({
-                age: professional.age || '',
+                name: professional.name || '',
                 specialty: professional.specialty || '',
-                phone: professional.phone || '',
+                phone: professional.phone || ''
             });
         }
         setIsOpen(false);
@@ -85,26 +88,28 @@ export default function ProfessionalModal({ professional, onUpdate }) {
         }
     };
 
+    const isFormValid = formData.name.trim() && formData.specialty.trim() && 
+                      formData.phone.trim();
+
     return (
         <>
-
+            {/* Trigger Button */}
             <button 
                 onClick={() => setIsOpen(true)} 
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-                <Plus size={16} className="mr-2" />
+                <Edit size={16} className="mr-2" />
                 Editar
             </button>
             
-
+            {/* Modal */}
             {isOpen && (
                 <div 
                     className="fixed inset-0 z-50 flex items-center justify-center p-4  bg-opacity-50 backdrop-blur-sm"
                     onClick={handleBackdropClick}
                 >
-
                     <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl transform transition-all duration-200 scale-100">
-  
+                        {/* Header */}
                         <div className="flex items-center justify-between p-6 border-b border-gray-200">
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-900">
@@ -123,34 +128,32 @@ export default function ProfessionalModal({ professional, onUpdate }) {
                             </button>
                         </div>
 
-    
+                        {/* Form */}
                         <div className="p-6 space-y-4">
-       
+                            {/* Name */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Edad *
+                                    Nombre *
                                 </label>
                                 <input
-                                    type="number"
-                                    placeholder="Ej: 25"
-                                    value={formData.age}
-                                    onChange={(e) => handleInputChange('age', e.target.value)}
+                                    type="text"
+                                    placeholder="Ej: Dr. Juan Pérez"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                                     required
                                     disabled={isLoading}
-                                    min="18"
-                                    max="80"
                                 />
                             </div>
 
-              
+                            {/* Specialty */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Especialidad *
                                 </label>
                                 <select
                                     value={formData.specialty}
-                                    onChange={(e) => handleInputChange('specialty', e.target.value)}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, specialty: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                                     required
                                     disabled={isLoading}
@@ -164,16 +167,16 @@ export default function ProfessionalModal({ professional, onUpdate }) {
                                 </select>
                             </div>
 
-       
+                            {/* Phone */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Contacto *
+                                    Teléfono *
                                 </label>
                                 <input
                                     type="tel"
                                     placeholder="Ej: 1234-5678"
                                     value={formData.phone}
-                                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                                     required
                                     disabled={isLoading}
@@ -181,7 +184,7 @@ export default function ProfessionalModal({ professional, onUpdate }) {
                             </div>
                         </div>
 
-          
+                        {/* Footer */}
                         <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
                             <button
                                 onClick={handleClose}
@@ -192,7 +195,7 @@ export default function ProfessionalModal({ professional, onUpdate }) {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={isLoading || !formData.age || !formData.specialty.trim() || !formData.phone.trim()}
+                                disabled={isLoading || !isFormValid}
                                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? (

@@ -4,7 +4,8 @@ import { Edit, Save, X } from 'lucide-react';
 export default function UserModal({ user, onUpdate }) {
     const [isOpen, setIsOpen] = useState(false);
     const [formData, setFormData] = useState({
-        age: '',
+        name:'',
+        fecha_nacimiento: '',
         gender: '',
         phone: '',
     });
@@ -12,7 +13,8 @@ export default function UserModal({ user, onUpdate }) {
     useEffect(() => {
         if (user && isOpen) {
             setFormData({
-                age: user.age || '',
+                name: user.name || '',
+                fecha_nacimiento: user.fecha_nacimiento || '',
                 gender: user.gender || '',
                 phone: user.phone || '',
             });
@@ -25,14 +27,30 @@ export default function UserModal({ user, onUpdate }) {
             [field]: value
         }));
     };
+    
 
     const handleSave = async () => {
         setIsLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (onUpdate) {
-                await onUpdate();
+            const response = await fetch(`http://127.0.0.1:5002/pacientes/${user.patientId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nombre: formData.name || user.name,
+                    telefono: formData.phone,
+                    genero: formData.gender,
+                    fecha_nacimiento: formData.fecha_nacimiento,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Error updating user');
             }
+            
+            onUpdate();
+
 
             setIsOpen(false);
         } catch (error) {
@@ -45,7 +63,8 @@ export default function UserModal({ user, onUpdate }) {
     const handleClose = () => {
         if (user) {
             setFormData({
-                age: user.age || '',
+                name: user.name || '',
+                fecha_nacimiento: user.fecha_nacimiento || '',
                 gender: user.gender || '',
                 phone: user.phone || '',
             });
@@ -109,18 +128,16 @@ export default function UserModal({ user, onUpdate }) {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Edad *
+                                    Fecha de Nacimiento *
                                 </label>
                                 <input
-                                    type="number"
+                                    type="date"
                                     placeholder="Ej: 21"
-                                    value={formData.age}
-                                    onChange={(e) => handleInputChange('age', e.target.value)}
+                                    value={formData.fecha_nacimiento}
+                                    onChange={(e) => handleInputChange('fecha_nacimiento', e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                                     required
                                     disabled={isLoading}
-                                    min="0"
-                                    max="120"
                                 />
                             </div>
 
@@ -168,7 +185,7 @@ export default function UserModal({ user, onUpdate }) {
                             </button>
                              <button
                                 onClick={handleSave}
-                                disabled={isLoading || !formData.age || !formData.gender.trim() || !formData.phone.trim()}
+                                disabled={isLoading || !formData.fecha_nacimiento || !formData.gender.trim() || !formData.phone.trim()}
                                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? (

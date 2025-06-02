@@ -1,101 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Save, X, Plus, Calendar, Clock, User, FileText } from 'lucide-react';
+import { Edit, Save, X, Plus, Calendar, Clock, User } from 'lucide-react';
 
-export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' }) {
+export default function AppointmentModal({ user, appointment, onUpdate, mode = 'edit' }) {
+    console.log('AppointmentModal rendered with mode:', mode, 'and appointment:', appointment);
     const [isOpen, setIsOpen] = useState(false);
+    const [patients, setPatients] = useState([]);
     const [formData, setFormData] = useState({
         fecha: '',
         hora: '',
-        paciente: '',
-        motivo: '',
+        pacienteId: '',
+        medicoId: user?.ID_Doctor || 1,
         estado: 'Pendiente'
     });
     const [isLoading, setIsLoading] = useState(false);
 
-    // Estados disponibles para las citas
-    const estados = [
-        'Pendiente',
-        'Confirmada',
-        'Urgente',
-        'Cancelada',
-        'Completada'
-    ];
+    const estados = ['Pendiente', 'Confirmada', 'Urgente', 'Cancelada', 'Completada'];
 
-    // Motivos comunes
-    const motivosComunes = [
-        'Consulta General',
-        'Control',
-        'Emergencia',
-        'Revisión',
-        'Diagnóstico',
-        'Seguimiento',
-        'Vacunación',
-        'Exámenes',
-        'Otro'
-    ];
 
+    useEffect(() => {
+        fetch('http://127.0.0.1:5002/pacientes')
+            .then(res => res.json())
+            .then(data => setPatients(data))
+            .catch(err => console.error('Error fetching patients:', err));
+    }, []);
+
+  
     useEffect(() => {
         if (appointment && isOpen) {
             setFormData({
                 fecha: appointment.fecha || '',
                 hora: appointment.hora || '',
-                paciente: appointment.paciente || '',
-                motivo: appointment.motivo || '',
+                pacienteId: appointment.pacienteId || '',
+                medicoId: appointment.medicoId || user?.ID_Doctor || 1,
                 estado: appointment.estado || 'Pendiente'
             });
         }
-    }, [appointment, isOpen]);
-
-    const handleInputChange = (field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
+    }, [appointment, isOpen, user]);
 
     const handleSave = async () => {
         setIsLoading(true);
+        
+        const endpoint = mode === 'create' 
+            ? 'http://127.0.0.1:5002/citas' 
+            : `http://127.0.0.1:5002/citas/${appointment.ID_Cita}`;
+        
+        const method = mode === 'create' ? 'POST' : 'PUT';
+
         try {
-            // Simular llamada a API
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (onUpdate) {
-                await onUpdate(formData);
-            }
-            
+            const response = await fetch(endpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fecha: formData.fecha,
+                    hora: formData.hora + ':00', // Add seconds for backend
+                    id_paciente: formData.pacienteId,
+                    id_medico: formData.medicoId,
+                    estado: formData.estado
+                })
+            });
+
+            if (!response.ok) throw new Error('Error saving appointment');
+
+            const data = await response.json();
+            if (onUpdate) await onUpdate(data);
             setIsOpen(false);
+            
+            // Reset form for new appointments
+            if (mode === 'create') {
+                setFormData({
+                    fecha: '',
+                    hora: '',
+                    pacienteId: '',
+                    medicoId: user?.ID_Doctor || 1,
+                    estado: 'Pendiente'
+                });
+            }
         } catch (error) {
-            console.error('Error updating appointment:', error);
+            console.error('Error saving appointment:', error);
+            alert('Error al guardar la cita');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClose = () => {
-        // Resetear formulario al cerrar
-        if (appointment) {
-            setFormData({
-                fecha: appointment.fecha || '',
-                hora: appointment.hora || '',
-                paciente: appointment.paciente || '',
-                motivo: appointment.motivo || '',
-                estado: appointment.estado || 'Pendiente'
-            });
-        } else {
+        setIsOpen(false);
+        // Reset form if creating new appointment
+        if (mode === 'create') {
             setFormData({
                 fecha: '',
                 hora: '',
-                paciente: '',
-                motivo: '',
+                pacienteId: '',
+                medicoId: user?.ID_Doctor || 1,
                 estado: 'Pendiente'
             });
-        }
-        setIsOpen(false);
-    };
-
-    const handleBackdropClick = (e) => {
-        if (e.target === e.currentTarget) {
-            handleClose();
         }
     };
 
@@ -111,15 +109,16 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
     };
 
     const isNewAppointment = mode === 'create' || !appointment;
+    const isFormValid = formData.fecha && formData.hora && formData.pacienteId;
 
     return (
         <>
-            {/* Botón trigger */}
-            <button 
-                onClick={() => setIsOpen(true)} 
+            {/* Trigger Button */}
+            <button
+                onClick={() => setIsOpen(true)}
                 className={`flex items-center px-4 py-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isNewAppointment 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500' 
+                    isNewAppointment
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-300'
                 }`}
             >
@@ -135,15 +134,14 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
                     </>
                 )}
             </button>
-            
+
             {/* Modal */}
             {isOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4  bg-opacity-50 backdrop-blur-sm"
-                    onClick={handleBackdropClick}
+                    onClick={(e) => e.target === e.currentTarget && handleClose()}
                 >
-                    {/* Modal content */}
-                    <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl transform transition-all duration-200 scale-100">
+                    <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl">
                         {/* Header */}
                         <div className="flex items-center justify-between p-6 border-b border-gray-200">
                             <div className="flex items-center">
@@ -159,7 +157,7 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
                             </div>
                             <button
                                 onClick={handleClose}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
                                 disabled={isLoading}
                             >
                                 <X size={20} className="text-gray-500" />
@@ -168,7 +166,7 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
 
                         {/* Form */}
                         <div className="p-6 space-y-4">
-                            {/* Fecha */}
+                            {/* Date */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     <Calendar size={16} className="inline mr-1" />
@@ -177,14 +175,13 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
                                 <input
                                     type="date"
                                     value={formData.fecha}
-                                    onChange={(e) => handleInputChange('fecha', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                                    required
+                                    onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     disabled={isLoading}
                                 />
                             </div>
 
-                            {/* Hora */}
+                            {/* Time */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     <Clock size={16} className="inline mr-1" />
@@ -193,62 +190,42 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
                                 <input
                                     type="time"
                                     value={formData.hora}
-                                    onChange={(e) => handleInputChange('hora', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                                    required
+                                    onChange={(e) => setFormData(prev => ({ ...prev, hora: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     disabled={isLoading}
                                 />
                             </div>
 
-                            {/* Paciente */}
+                            {/* Patient */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     <User size={16} className="inline mr-1" />
                                     Paciente *
                                 </label>
-                                <input
-                                    type="text"
-                                    placeholder="Nombre del paciente"
-                                    value={formData.paciente}
-                                    onChange={(e) => handleInputChange('paciente', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-
-                            {/* Motivo */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <FileText size={16} className="inline mr-1" />
-                                    Motivo *
-                                </label>
                                 <select
-                                    value={formData.motivo}
-                                    onChange={(e) => handleInputChange('motivo', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                                    required
+                                    value={formData.pacienteId}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, pacienteId: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     disabled={isLoading}
                                 >
-                                    <option value="">Seleccionar motivo</option>
-                                    {motivosComunes.map((motivo) => (
-                                        <option key={motivo} value={motivo}>
-                                            {motivo}
+                                    <option value="">Seleccione un paciente</option>
+                                    {patients.map((patient) => (
+                                        <option key={patient.ID_Paciente} value={patient.ID_Paciente}>
+                                            {patient.Nombre} - {patient.Teléfono} ({patient.Género})
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
-                            {/* Estado */}
+                            {/* Status */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Estado *
                                 </label>
                                 <select
                                     value={formData.estado}
-                                    onChange={(e) => handleInputChange('estado', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                                    required
+                                    onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     disabled={isLoading}
                                 >
                                     {estados.map((estado) => (
@@ -272,14 +249,14 @@ export default function AppointmentModal({ appointment, onUpdate, mode = 'edit' 
                             <button
                                 onClick={handleClose}
                                 disabled={isLoading}
-                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={isLoading || !formData.fecha || !formData.hora || !formData.paciente.trim() || !formData.motivo.trim()}
-                                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isLoading || !isFormValid}
+                                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
                             >
                                 {isLoading ? (
                                     <>

@@ -6,45 +6,57 @@ export default function PatientView({ user, activeView }) {
     const [medicalHistory, setMedicalHistory] = useState([])
     const [treatments, setTreatments] = useState([])
     const [loading, setLoading] = useState(true)
+    const [patientData, setPatientData] = useState(null)
 
     useEffect(() => {
-        fetchPatientData()
+        getPatientMedicalHistory()
+        getPatientPersonalData()
     }, [])
 
-    const fetchPatientData = async () => {
+    const getPatientPersonalData = async () => {
         try {
-
-            const [historyResponse, treatmentsResponse] = await Promise.all([
-                fetch(`/api/patients/${user.id}/medical-history`),
-                fetch(`/api/patients/${user.id}/treatments`),
-            ])
-
-            // Mock data for demo
-            setMedicalHistory([
-                {
-                    id: "1",
-                    patientId: user.id,
-                    date: "2024-12-12",
-                    diagnosis: "Gripe y Tos",
-                    doctorName: "Dr. García",
-                },
-            ])
-
-            setTreatments([
-                {
-                    id: "1",
-                    patientId: user.id,
-                    date: "2024-12-12",
-                    treatment: "Virogrip",
-                    doctorName: "Dr. García",
-                },
-            ])
+            const response = await fetch(`http://127.0.0.1:5002/patients/${user.id}`);
+            if (!response.ok) {
+                throw new Error("Failed to fetch fresh patient data");
+            }
+            const data = await response.json();
+            setPatientData(data);
         } catch (error) {
-            console.error("Error fetching patient data:", error)
-        } finally {
-            setLoading(false)
+            console.error("Error fetching fresh patient data:", error)
         }
     }
+
+    const getPatientMedicalHistory = async () => {
+        try {
+            const response = await fetch(`http://127.0.0.1:5002/historial/paciente/${user.id}`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+
+
+            const formattedData = data ? data.map(record => ({
+                ID_Historial: record.ID_Historial,
+                Fecha_Creación: record.Fecha_Creación,
+                ID_Paciente: record.ID_Paciente,
+                nombre_paciente: record.nombre_paciente,
+                diagnosticos: record.diagnosticos || null,
+                doctorName: record.doctorName || "No especificado"
+            })) : [];
+
+            setMedicalHistory(formattedData);
+            setLoading(false);
+        } catch (error) {
+            console.error("Error fetching medical history:", error);
+            setMedicalHistory([]);
+            setLoading(false);
+        }
+    }
+
+
+
+
+
 
     if (activeView === "profile") {
         return (
@@ -52,7 +64,7 @@ export default function PatientView({ user, activeView }) {
                 <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-semibold text-gray-900">Información Personal</h2>
-                        <UserModal user={user} onUpdate={fetchPatientData} />
+                        <UserModal user={patientData} onUpdate={getPatientPersonalData} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -61,7 +73,7 @@ export default function PatientView({ user, activeView }) {
                                 <UserIcon size={20} className="text-gray-400 mr-3" />
                                 <div>
                                     <p className="text-sm text-gray-500">Edad</p>
-                                    <p className="font-medium">{user.age} años</p>
+                                    <p className="font-medium">{patientData.age} años</p>
                                 </div>
                             </div>
 
@@ -69,7 +81,7 @@ export default function PatientView({ user, activeView }) {
                                 <UserIcon size={20} className="text-gray-400 mr-3" />
                                 <div>
                                     <p className="text-sm text-gray-500">Género</p>
-                                    <p className="font-medium">{user.gender}</p>
+                                    <p className="font-medium">{patientData.gender}</p>
                                 </div>
                             </div>
 
@@ -77,7 +89,7 @@ export default function PatientView({ user, activeView }) {
                                 <Phone size={20} className="text-gray-400 mr-3" />
                                 <div>
                                     <p className="text-sm text-gray-500">Contacto</p>
-                                    <p className="font-medium">{user.contact}</p>
+                                    <p className="font-medium">{patientData.phone}</p>
                                 </div>
                             </div>
                         </div>
@@ -126,67 +138,91 @@ export default function PatientView({ user, activeView }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {medicalHistory.map((record) => (
-                                    <tr key={record.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.date}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.diagnosis}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.doctorName}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button className="text-blue-600 hover:text-blue-900 mr-3">Ver detalles</button>
-                                            <button className="text-gray-600 hover:text-gray-900">
-                                                <Edit size={16} />
-                                            </button>
+                                {medicalHistory.length > 0 ? (
+                                    medicalHistory.map((record) => (
+                                        <tr key={record.ID_Historial} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {record.Fecha_Creación}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {record.diagnosticos > 0 || "No especificado"}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {record.doctorName || "No especificado"}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button className="text-blue-600 hover:text-blue-900 mr-3">
+                                                    Ver detalles
+                                                </button>
+                                                <button className="text-gray-600 hover:text-gray-900">
+                                                    <Edit size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                                            No se encontraron registros médicos
                                         </td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Treatments Section */}
-                <div className="bg-white rounded-lg shadow-sm mt-6">
-                    <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-xl font-semibold text-gray-900">Tratamientos</h2>
-                    </div>
+                {/* Treatments Section - Only show if there are treatments */}
+                {treatments.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-sm mt-6">
+                        <div className="p-6 border-b border-gray-200">
+                            <h2 className="text-xl font-semibold text-gray-900">Tratamientos</h2>
+                        </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Fecha
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tratamiento
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Doctor
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Estado
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {treatments.map((treatment) => (
-                                    <tr key={treatment.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{treatment.date}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{treatment.treatment}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{treatment.doctorName}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                Activo
-                                            </span>
-                                        </td>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Fecha
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tratamiento
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Doctor
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Estado
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {treatments.map((treatment) => (
+                                        <tr key={treatment.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {treatment.date}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {treatment.treatment}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {treatment.doctorName}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                    Activo
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
-        )
+        );
     }
 
     // Overview/Dashboard view

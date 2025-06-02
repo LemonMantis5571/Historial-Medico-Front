@@ -15,7 +15,7 @@ export default function Dashboard({ user, onLogout }) {
         <Header user={user} />
 
         <main className="flex-1 overflow-y-auto p-6">
-          {user.type === "patient" ? (
+          {user.role === "patient" ? (
             <PatientView user={user} activeView={activeView} />
           ) : (
             <DoctorView user={user} activeView={activeView} />

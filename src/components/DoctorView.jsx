@@ -5,61 +5,132 @@ import { Users, Calendar, FileText, Plus, Search } from "lucide-react"
 import ProfessionalModal from "./Modal/DoctorModal"
 import AppointmentModal from "./Modal/AppointmentModal"
 import PatientModal from "./Modal/PatientModal"
+import PatientHistoryModal from "./Modal/PatientHistoryModal"
+import AddDiagnosisModal from "./Modal/AddDiagnosisModal"
+
+function formatTime(timeString) {
+    if (!timeString) return '';
+
+    try {
+        const [hours, minutes] = timeString.split(':');
+        const hour = parseInt(hours, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+    } catch {
+        return timeString;
+    }
+}
 
 export default function DoctorView({ user, activeView }) {
+    console.log("DoctorView rendered with user:", user)
     const [patients, setPatients] = useState([])
     const [loading, setLoading] = useState(true)
+    const [appointments, setAppointments] = useState([])
+    const [medic, setMedic] = useState([])
 
     useEffect(() => {
+        fetchAppointments()
+        fetchPatients()
         fetchDoctorData()
     }, [])
 
+    const fetchPatients = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`http://127.0.0.1:5002/medicos/${user.ID_Doctor}/pacientes`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log("Fetched patients for doctor:", user.ID_Doctor, data.patients);
+            console.log("DataAAAAAAAAAAAAAAAAA:", data)
+            setPatients(data.patients || []);
+        }
+        catch (error) {
+            console.error("Error fetching doctor data:", error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
     const fetchDoctorData = async () => {
         try {
-
-            const response = await fetch(`/api/doctors/${user.id}/patients`)
-
-
-            setPatients([
-                {
-                    id: "1",
-                    name: "Paciente 1",
-                    age: 21,
-                    gender: "Masculino",
-                    contact: "1234-5678",
-                    lastVisit: "2024-12-12",
-                    status: "active",
-                },
-                {
-                    id: "2",
-                    name: "Paciente 2",
-                    age: 35,
-                    gender: "Femenino",
-                    contact: "1234-5679",
-                    lastVisit: "2024-12-10",
-                    status: "active",
-                },
-            ])
+            const response = await fetch(`http://127.0.0.1:5002/medicos/${user.ID_Doctor}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            console.log("Fetching doctor data for user:", user.ID_Doctor)
+            const data = await response.json();
+            setMedic(data.medico || []);
         } catch (error) {
-            console.error("Error fetching doctor data:", error)
-        } finally {
-            setLoading(false)
+            console.error("Error fetching doctor data:", error.message);
+
+
         }
     }
 
     const fetchAppointments = async () => {
         try {
-            const response = await fetch(`/api/doctors/${user.id}/appointments`)
+            setLoading(true);
+            const response = await fetch(`http://127.0.0.1:5002/citas/medico/${user.ID_Doctor}`);
+
             if (!response.ok) {
-                throw new Error("Failed to fetch appointments")
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            const data = await response.json()
-            return data.appointments || []
+
+            const data = await response.json();
+            setAppointments(data.citas || []);
+
         } catch (error) {
-            console.error("Error fetching appointments:", error)
-            return []
+            console.error("Error fetching appointments:", error.message);
+            // Optionally show error to user
+            setError(error.message);
+        } finally {
+            setLoading(false);
         }
     }
+
+    const handleCancelAppointment = async (appointmentId) => {
+        if (!window.confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await fetch(`http://127.0.0.1:5002/citas/${appointmentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to cancel appointment');
+            }
+
+            const result = await response.json();
+            console.log('Appointment canceled:', result);
+
+            // Refresh the appointments list
+            fetchAppointments();
+
+            // Show success message
+            toast.success('Cita cancelada exitosamente');
+
+        } catch (error) {
+            console.error('Error canceling appointment:', error);
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
 
 
     if (activeView === "patients") {
@@ -78,7 +149,7 @@ export default function DoctorView({ user, activeView }) {
                                         className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     />
                                 </div>
-                           
+
                             </div>
                         </div>
                     </div>
@@ -97,7 +168,7 @@ export default function DoctorView({ user, activeView }) {
                                         Contacto
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Última Visita
+                                        Genero
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Estado
@@ -105,6 +176,8 @@ export default function DoctorView({ user, activeView }) {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Acciones
                                     </th>
+
+                                    
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -122,15 +195,23 @@ export default function DoctorView({ user, activeView }) {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.age} años</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.contact}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.lastVisit}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.phone}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.gender}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                                 Activo
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">Ver Historial</button>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-lg flex gap-4">
+                                            <PatientHistoryModal
+                                                patient={patient}
+                                                patientId={patient.patientId}
+                                                onUpdate={fetchPatients}
+                                            />
+                                            <AddDiagnosisModal
+                                                patientId={patient.patientId}
+                                                onUpdate={fetchPatients}
+                                            />
                                         </td>
                                     </tr>
                                 ))}
@@ -143,29 +224,25 @@ export default function DoctorView({ user, activeView }) {
     }
 
     if (activeView === "profile") {
+        console.log("Rendering profile view with user:", medic)
         return (
             <div className="max-w-4xl mx-auto">
                 <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-semibold text-gray-900">Información Profesional</h2>
-                      <ProfessionalModal professional={user} onUpdate={fetchDoctorData} />
+                        <ProfessionalModal professional={user} onUpdate={fetchDoctorData} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                             <div>
-                                <p className="text-sm text-gray-500">Edad</p>
-                                <p className="font-medium">{user.age} años</p>
-                            </div>
-
-                            <div>
                                 <p className="text-sm text-gray-500">Especialidad</p>
-                                <p className="font-medium">{user.specialty}</p>
+                                <p className="font-medium">{medic.specialty}</p>
                             </div>
 
                             <div>
                                 <p className="text-sm text-gray-500">Contacto</p>
-                                <p className="font-medium">{user.contact}</p>
+                                <p className="font-medium">{medic.phone}</p>
                             </div>
                         </div>
 
@@ -178,7 +255,7 @@ export default function DoctorView({ user, activeView }) {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Consultas Este Mes</span>
-                                    <span className="text-sm font-medium">24</span>
+                                    <span className="text-sm font-medium">{appointments.length}</span>
                                 </div>
                             </div>
                         </div>
@@ -195,117 +272,113 @@ export default function DoctorView({ user, activeView }) {
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-semibold text-gray-900">Citas Médicas</h2>
-                            <AppointmentModal mode="create" appointment={null} onUpdate={fetchAppointments} />
+                            <AppointmentModal
+                                user={user}
+                                mode="create"
+                                appointment={null}
+                                onUpdate={fetchAppointments}
+                            />
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Fecha
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Hora
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Paciente
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Motivo
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Estado
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Acciones
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-15</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">09:00 AM</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                                <span className="text-xs font-medium text-blue-600">P1</span>
-                                            </div>
-                                            <div className="ml-3">
-                                                <div className="text-sm font-medium text-gray-900">Paciente 1</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Consulta General</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            Confirmada
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button className="text-blue-600 hover:text-blue-900 mr-3">Ver</button>
-                                        <button className="text-yellow-600 hover:text-yellow-900 mr-3">Editar</button>
-                                        <button className="text-red-600 hover:text-red-900">Cancelar</button>
-                                    </td>
-                                </tr>
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-15</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10:30 AM</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                                <span className="text-xs font-medium text-purple-600">P2</span>
-                                            </div>
-                                            <div className="ml-3">
-                                                <div className="text-sm font-medium text-gray-900">Paciente 2</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Control</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            Pendiente
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button className="text-blue-600 hover:text-blue-900 mr-3">Ver</button>
-                                        <button className="text-yellow-600 hover:text-yellow-900 mr-3">Editar</button>
-                                        <button className="text-red-600 hover:text-red-900">Cancelar</button>
-                                    </td>
-                                </tr>
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-16</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">02:00 PM</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                                <span className="text-xs font-medium text-green-600">P3</span>
-                                            </div>
-                                            <div className="ml-3">
-                                                <div className="text-sm font-medium text-gray-900">Paciente 3</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Emergencia</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            Urgente
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button className="text-blue-600 hover:text-blue-900 mr-3">Ver</button>
-                                        <button className="text-yellow-600 hover:text-yellow-900 mr-3">Editar</button>
-                                        <button className="text-red-600 hover:text-red-900">Cancelar</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    {loading ? (
+                        <div className="p-6 flex justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Fecha
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Hora
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Paciente
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Teléfono
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Estado
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Acciones
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {appointments.length > 0 ? (
+                                        appointments.map((cita) => (
+                                            <tr key={cita.ID_Cita} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {cita.Fecha}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {formatTime(cita.Hora)}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                                            <span className="text-xs font-medium text-blue-600">
+                                                                {cita.nombre_paciente.charAt(0)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="ml-3">
+                                                            <div className="text-sm font-medium text-gray-900">
+                                                                {cita.nombre_paciente}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {cita.Teléfono}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${cita.Estado === 'Confirmada' ? 'bg-green-100 text-green-800' :
+                                                            cita.Estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                                                                cita.Estado === 'Urgente' ? 'bg-red-100 text-red-800' :
+                                                                    cita.Estado === 'Cancelada' ? 'bg-gray-100 text-gray-800' :
+                                                                        'bg-blue-100 text-blue-800'
+                                                        }`}>
+                                                        {cita.Estado}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-4">
+                                                    <AppointmentModal
+                                                        user={user}
+                                                        mode="edit"
+                                                        appointment={cita}
+                                                        onUpdate={fetchAppointments}
+                                                    />
+                                                    <button
+                                                        className="text-red-600 hover:text-red-900"
+                                                        onClick={() => handleCancelAppointment(cita.ID_Cita)}
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                                                No hay citas programadas
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         )
     }
+
 
     // Overview/Dashboard view
     return (
@@ -376,7 +449,11 @@ export default function DoctorView({ user, activeView }) {
                                     <p className="text-sm text-gray-600">Última visita: {patient.lastVisit}</p>
                                 </div>
                             </div>
-                            <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">Ver Historial</button>
+                            <PatientHistoryModal
+                                patient={patient}
+                                patientId={patient.patientId}
+                                onUpdate={fetchPatients}
+                            />
                         </div>
                     ))}
                 </div>
